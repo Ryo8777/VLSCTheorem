@@ -130,14 +130,14 @@ rewrite cardsT card_tuple -INR_pow_expn.
 by apply pow_R1_Rle, Xcard. 
 Qed.
 
-Lemma IZR_INR_to_nat z: 0 <= IZR z -> IZR z = INR (Z.to_nat z).
+Lemma IZR_INR_to_nat z: 0 <= IZR z -> IZR z = INR (Zabs_nat z).
 Proof.
 move => H.
 rewrite -INR_Zabs_nat ;last by apply le_IZR.
 by rewrite Zabs2Nat.abs_nat_nonneg; [ done | apply le_IZR].
 Qed.
 
-Lemma card_TS_le_L0 : INR #| `TS P n epsilon | <= INR #|[ set : (Z.to_nat L_0).-tuple bool]|. 
+Lemma card_TS_le_L0 : INR #| `TS P n epsilon | <= INR #|[ set : (Zabs_nat L_0).-tuple bool]|. 
 Proof.
 eapply Rle_trans; first by apply TS_sup.
 rewrite cardsT /= card_tuple /= card_bool -exp2_pow2.
@@ -146,7 +146,7 @@ rewrite -IZR_INR_to_nat; last apply RltW, L_0_pos.
 by apply ceil_bottom. 
 Qed.
 
-Lemma card_tuple_le_L1 : INR #| [set: n.-tuple X]| <= INR #| [set: (Z.to_nat L_1).-tuple bool]|.
+Lemma card_tuple_le_L1 : INR #| [set: n.-tuple X]| <= INR #| [set: (Zabs_nat L_1).-tuple bool]|.
 Proof.
 rewrite /L_1 cardsT card_tuple.
 rewrite {1}(_ :  INR (#|X| ^ n) = exp2 (log ( INR (#|X|^n)))); last first.
@@ -178,7 +178,7 @@ Local Notation "'L_0'" := (L_0 n' P epsilon).
 Local Notation "'L_1'" := (L_1 X n').
 
 Lemma le_n_L1_tuple :
-  #|[finType of n.-tuple X] | <= #|[finType of (Z.to_nat L_1).-tuple bool]|.
+  #|[finType of n.-tuple X] | <= #|[finType of (Zabs_nat L_1).-tuple bool]|.
 Proof.
 apply /leP.
 do 2 rewrite -cardsT.
@@ -195,7 +195,7 @@ Qed.
 
 Definition enc_typ x :=
  let i := seq.index x (enum (`TS P n epsilon))
- in Tuple (size_nat2bin i (Z.to_nat L_0)).
+ in Tuple (size_nat2bin i (Zabs_nat L_0)).
 
 Definition f : v_encT X n := fun x =>
   if x \in `TS P n epsilon then
@@ -214,7 +214,7 @@ case: ifP => Ht1.
   case => H.
   have {H}H : seq.index t1 (enum (`TS P n epsilon)) =
               seq.index t2 (enum (`TS P n epsilon)).
-    apply nat2bin_inj with (Z.to_nat L_0) => //.
+    apply nat2bin_inj with (Zabs_nat L_0) => //.
     apply leq_trans with #|`TS P n epsilon|.
       apply seq_index_enum_card => //; first by exact: enum_uniq.
       apply/leP.
@@ -364,19 +364,19 @@ Variable P : dist X.
 Variable epsilon : R.
 Hypothesis ep_pos : 0 < epsilon .
 Definition epsilon':= epsilon / (3 + (3 * log (INR #|X|))).
-Definition n0 := maxn (Z.to_nat (ceil (INR 2 / (INR 1 + log (INR #|X|))))) 
-                     (maxn (Z.to_nat (ceil (8 / epsilon)))
-                     (Z.to_nat (ceil (aep_sigma2 P/ epsilon' ^ 3)))).
+Definition n0 := maxn (Zabs_nat (ceil (INR 2 / (INR 1 + log (INR #|X|))))) 
+                     (maxn (Zabs_nat (ceil (8 / epsilon)))
+                     (Zabs_nat (ceil (aep_sigma2 P/ epsilon' ^ 3)))).
 Hypothesis n0_n : (n0 < n)%coq_nat.
 
-Lemma n1_le_n : (Z.to_nat (ceil (INR 2 / (INR 1 + log (INR #|X|)))) < n)%coq_nat.
+Lemma n1_le_n : (Zabs_nat (ceil (INR 2 / (INR 1 + log (INR #|X|)))) < n)%coq_nat.
 Proof.
 move/ltP : n0_n.
 rewrite /n0 gtn_max.
 by case/andP => /ltP.
 Qed.
 
-Lemma n2_le_n : (Z.to_nat (ceil (8 / epsilon)) < n)%coq_nat.
+Lemma n2_le_n : (Zabs_nat (ceil (8 / epsilon)) < n)%coq_nat.
 Proof.
 move/ltP : n0_n.
 do 2 rewrite /n0 gtn_max.
@@ -385,7 +385,7 @@ case/andP=> H1 H2.
 by apply /ltP.
 Qed.
 
-Lemma n3_le_n : (Z.to_nat (ceil (aep_sigma2 P / epsilon' ^ 3 )) < n)%coq_nat.
+Lemma n3_le_n : (Zabs_nat (ceil (aep_sigma2 P / epsilon' ^ 3 )) < n)%coq_nat.
 Proof.
 move/ltP : n0_n.
 do 2 rewrite /n0 gtn_max.
