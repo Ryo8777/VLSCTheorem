@@ -203,7 +203,7 @@ Definition f : v_encT X n := fun x =>
   else 
     false :: not_enc_typ x.
 
-Lemma f_injective : injective f.
+Lemma f_inj : injective f.
 Proof.
 move=> t1 t2.
 rewrite /f.
@@ -255,12 +255,34 @@ Definition phi y := if [ pick x | f x == y ] is Some x then x else phi_def.
 
 Lemma phi_f x : phi (f x) = x.
 Proof.
-rewrite /phi. 
+rewrite /phi.
 case: (pickP _) => [x0 /eqP | H].
-  by apply f_injective.
+  by apply f_inj.
 move: (H x).
 by rewrite eqxx.
 Qed.
+
+Definition extension (enc : v_encT X n) (x : seq (n.-tuple X)) :=
+flatten (map enc x).
+
+Lemma uniquely_decodable : injective (extension f).
+Proof.
+move =>t1.
+elim t1=>[t2|a la H t2].
+by case t2=>[|a la];[done | rewrite /extension /f /=; case: ifP].
+case t2=>[|b lb]; [by rewrite /extension /f /=; case: ifP | rewrite /extension /= /f ].
+case: ifP=> [ainT | aninT].
+  case: ifP=> binT; last done.
+  move /eqP.
+  rewrite  -/f eqseq_cat; last by rewrite /= !/nat2bin !size_pad_seqL.
+  case /andP=>[/eqP eq_ab ] /eqP /H ->.
+  congr (_ :: _); by apply f_inj; rewrite /f ainT binT.
+case: ifP=> bninT; first done.
+move /eqP.
+rewrite  -/f eqseq_cat; last by rewrite !size_tuple. 
+case /andP=>[/eqP eq_ab ] /eqP /H ->.
+congr (_ :: _); by apply f_inj; rewrite /f aninT bninT.
+Qed. 
 
 End enc_dec_def.
 
@@ -269,9 +291,7 @@ Variable (X : finType) (n :nat).
 Variable f : v_encT X n.
 Variable P : dist X.
 
-Definition len_cw x := size (f x).
-
-Definition exp_len_cw := `E (mkRvar (P `^ n) (fun x => INR (len_cw x))).
+Definition exp_len_cw := `E (mkRvar (P `^ n) (fun x => INR (size (f x)))).
 
 End exp_len_cw_def.
 
@@ -286,16 +306,16 @@ Hypothesis aepbound : aep_bound P epsilon <= INR n.
 Local Notation "'L_0'" := (L_0 n' P epsilon).
 Local Notation "'L_1'" := (L_1 X n').
 
-Lemma fdef_in x : x \in `TS P n epsilon -> INR (len_cw (f P epsilon) x) = (IZR L_0) + 1.
+Lemma fdef_in x : x \in `TS P n epsilon -> INR (size (f P epsilon x)) = (IZR L_0) + 1.
 Proof.
 move => H.
-rewrite /len_cw /f H /= size_pad_seqL IZR_INR_to_nat; last by apply RltW, L_0_pos.
+rewrite /f H /= size_pad_seqL IZR_INR_to_nat; last by apply RltW, L_0_pos.
 by rewrite -addn1; first rewrite plus_INR.
 Qed.
 
-Lemma fdef_notin x : x \in ~: `TS P n epsilon -> INR (len_cw (f P epsilon) x) = (IZR L_1) + 1.
+Lemma fdef_notin x : x \in ~: `TS P n epsilon -> INR (size (f P epsilon x)) = (IZR L_1) + 1.
 Proof.
-rewrite /len_cw /f in_setC => H.
+rewrite /f in_setC => H.
 apply negbTE in H.
 rewrite H /= -addn1 size_tuple plus_INR.
 by rewrite -IZR_INR_to_nat ; last apply L_1_nonneg.
@@ -303,14 +323,14 @@ Qed.
 
 Lemma Hexp_len_cw : 
   exp_len_cw (f (n':=n') P epsilon) P 
-  = \rsum_(x in [finType of n.-tuple X])( P`^n(x) * (INR (len_cw (f P epsilon) x))).
+  = \rsum_(x in [finType of n.-tuple X])( P`^n(x) * (INR (size (f P epsilon x)))).
 Proof.
 apply eq_bigr => /= x _.
 by rewrite mulRC.
 Qed.
 
 Lemma f_typ_in :  
-  \rsum_(x| x \in `TS P n epsilon) P `^ n (x) * (INR (len_cw (f P epsilon) x) ) =  
+  \rsum_(x| x \in `TS P n epsilon) P `^ n (x) * (INR (size (f P epsilon x)) ) =  
   \rsum_(x| x \in `TS P n epsilon) P `^ n (x) * (IZR L_0 + 1).
 Proof.
 elim: (index_enum [finType of n.-tuple X]) => [| hd tl IH].
@@ -321,7 +341,7 @@ elim: (index_enum [finType of n.-tuple X]) => [| hd tl IH].
 Qed.
 
 Lemma f_typ_notin:
-  \rsum_(x| x \in ~:(`TS P n epsilon)) P `^ n (x) * (INR (len_cw (f P epsilon) x) )
+  \rsum_(x| x \in ~:(`TS P n epsilon)) P `^ n (x) * (INR (size (f P epsilon x)) )
   = \rsum_(x| x \in ~:(`TS P n epsilon)) P `^ n (x) * (IZR L_1 + 1) .
 Proof.
 elim: (index_enum [finType of n.-tuple X]) => [| hd tl IH].
@@ -512,14 +532,12 @@ by apply RltW, lt_INR, n3_le_n.
 Qed. 
 
 Lemma v_scode_helper : exists (f : v_encT X n) (phi : v_decT X n) , 
-                         (forall x, phi (f x) = x) /\ 
+                         (forall x, phi (f x) = x) /\
                          (exp_len_cw f P) / (INR n) < (`H P + epsilon).
 Proof.
 exists (f P epsilon') .
 exists (phi n' P epsilon').
-split.
-  move => x.
-  by apply phi_f; first apply ep'_pos.
+split=> [ x |]; first  by apply (phi_f _ ep'_pos).
 apply (Rmult_lt_reg_r (INR n)).
   by apply lt_0_INR; apply /ltP.
 rewrite /Rdiv -mulRA -(mulRC (INR n)).
@@ -600,6 +618,7 @@ Hypothesis ep_pos : 0 < epsilon .
                      (maxn (Z.to_nat (ceil (8 / epsilon)))
                      (Z.to_nat (ceil (aep_sigma2 P/ epsilon' ^ 3)))).*)
 Local Notation "'n0'" := (n0 P epsilon).
+
 
 Theorem vscode : (n0 < n)%nat -> 
   exists f : v_encT X n,
