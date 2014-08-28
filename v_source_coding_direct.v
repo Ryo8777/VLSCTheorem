@@ -12,24 +12,6 @@ Local Open Scope proba_scope.
 Local Open Scope reals_ext_scope.
 Local Open Scope entropy_scope.
 
-Section set_lemma.
-Variable X : finType.
-Variable S: {set X}.
-
-Lemma set_complement:
-  [set :  X] = S :|: ~:S.
-Proof.
-by apply/setP => x; rewrite !inE orbN. 
-Qed.
-
-Lemma disjoint_set_complement:
-  [disjoint S & ~: S].
-Proof.
-by rewrite disjoints_subset subsetC setCS.
-Qed.
-
-End set_lemma.
-
 Section Rsum_lemma.
 Variable (X : finType) (n : nat).
 Variable f : X -> R.
@@ -39,20 +21,7 @@ Variable S : {set  X}.
 Lemma rsum_type_set :
   \rsum_(x in X) f(x) = \rsum_(x in [set : X]) f(x).
 Proof.
-elim: (index_enum X) => [| hd tl IH].
-- by rewrite !big_nil.
-- rewrite !big_cons. 
-  rewrite in_setT. 
-  by rewrite /= IH.
-Qed.
-
-Lemma rsum_fr_rf r U:
-  \rsum_(x | U x) (f(x) * r) = r * \rsum_(x | U x) f(x) .
-Proof.
-elim: (index_enum X) => [| hd tl IH].
-- by rewrite !big_nil mulR0.
-- rewrite !big_cons IH mulRC.
-  case (U hd); [ by rewrite mulRDr | by []].
+by apply eq_bigl=>i; first rewrite in_setT.
 Qed.
 
 Lemma rsum_S_not_S:
@@ -60,19 +29,18 @@ Lemma rsum_S_not_S:
   \rsum_(x| x \in S ) f x
                  + \rsum_(x| x \in ~: S) f x.
 Proof. 
-apply rsum_union.
-  by rewrite disjoint_sym; by apply disjoint_set_complement.
-by apply set_complement. 
+apply: rsum_union; first by rewrite disjoints_subset setCS.
+by apply/setP=> ?; rewrite !inE orbN.
 Qed.
 
 Lemma log_pow k:
-  log(INR (n ^ k)) = (INR k) * log (INR n ).
+  log(INR (n ^ k)) = (INR k) * log (INR n).
 Proof. 
 elim: k => [| k IH].
   by rewrite mul0R expn0 log_1.
-rewrite expnS -multE mult_INR log_mult; last 2 first.
-  apply lt_0_INR; by apply/ltP.
+rewrite expnS -multE mult_INR log_mult; last first.
   apply lt_0_INR; apply/ltP; by rewrite expn_gt0 /orb n_pos.
+  apply lt_0_INR; by apply/ltP.
 by rewrite IH -addn1 plus_INR mulRDl addRC mul1R.
 Qed.
 
@@ -84,9 +52,9 @@ Variable S : {set  X}.
 Variable P : dist X.
 
 Lemma rsum_complement_dist :  \rsum_(x| x \in ~:S) P x
-               =  (1- \rsum_(x| x \in S) P x).
+               =  (1 - \rsum_(x| x \in S) P x).
 Proof.
-by rewrite -(pmf1 P) rsum_type_set (rsum_S_not_S _ S); field.
+rewrite -(pmf1 P) rsum_type_set (rsum_S_not_S _ S); field.
 Qed.
 
 End Rsum_probability.
@@ -101,15 +69,15 @@ Hypothesis ep_pos : 0 < epsilon.
 Lemma Xcard : 1 <= INR #|X|.
 Proof.
 rewrite (_ : 1 = INR 1) //.
-apply le_INR; apply /leP.
-by apply dist_support_not_empty, P.
+apply le_INR. 
+by apply /leP; first apply (dist_support_not_empty P).
 Qed.
 
-Definition L_0 := ceil (INR n * (`H P + epsilon)).
+Definition L0 := ceil (INR n * (`H P + epsilon)).
 
-Lemma L_0_pos: 0 < IZR L_0.
+Lemma L0_pos: 0 < IZR L0.
 Proof.
-rewrite /L_0.
+rewrite /L0.
 apply Rlt_le_trans with (INR n * (`H P + epsilon)).
   rewrite -(mulR0 0).
   apply Rmult_le_0_lt_compat; first by apply Rle_refl.
@@ -119,9 +87,9 @@ apply Rlt_le_trans with (INR n * (`H P + epsilon)).
 by apply ceil_bottom.
 Qed.
 
-Definition L_1 :=  ceil (log (INR #| [set : n.-tuple X]|)).
+Definition L1 :=  ceil (log (INR #| [set : n.-tuple X]|)).
   
-Lemma L_1_nonneg: 0 <= IZR L_1.
+Lemma L1_nonneg: 0 <= IZR L1.
 Proof.
 apply Rle_trans with (log (INR #|[set: n.-tuple X]|)); last by apply ceil_bottom.
 rewrite -log_1.
@@ -137,24 +105,24 @@ rewrite -INR_Zabs_nat ;last by apply le_IZR.
 by rewrite Zabs2Nat.abs_nat_nonneg; [ done | apply le_IZR].
 Qed.
 
-Lemma card_TS_le_L0 : INR #| `TS P n epsilon | <= INR #|[ set : (Zabs_nat L_0).-tuple bool]|. 
+Lemma card_TS_le_L0 : INR #| `TS P n epsilon | <= INR #|[ set : (Zabs_nat L0).-tuple bool]|. 
 Proof.
 eapply Rle_trans; first by apply TS_sup.
 rewrite cardsT /= card_tuple /= card_bool -exp2_pow2.
 apply exp2_le_increasing.
-rewrite -IZR_INR_to_nat; last apply RltW, L_0_pos.
+rewrite -IZR_INR_to_nat; last apply RltW, L0_pos.
 by apply ceil_bottom. 
 Qed.
 
-Lemma card_tuple_le_L1 : INR #| [set: n.-tuple X]| <= INR #| [set: (Zabs_nat L_1).-tuple bool]|.
+Lemma card_tuple_le_L1 : INR #| [set: n.-tuple X]| <= INR #| [set: (Zabs_nat L1).-tuple bool]|.
 Proof.
-rewrite /L_1 cardsT card_tuple.
+rewrite /L1 cardsT card_tuple.
 rewrite {1}(_ :  INR (#|X| ^ n) = exp2 (log ( INR (#|X|^n)))); last first.
   rewrite exp2_log; first done; last rewrite -INR_pow_expn.
   apply pow_lt, Rlt_le_trans with 1; by [apply Rlt_0_1 | apply Xcard].
 rewrite cardsT card_tuple card_bool -exp2_pow2.
 apply exp2_le_increasing.
-rewrite /L_1 -IZR_INR_to_nat; last first.
+rewrite /L1 -IZR_INR_to_nat; last first.
   apply Rle_trans with (log (INR (#|X|^n))); last by apply ceil_bottom.  
   rewrite -log_1. 
   apply log_increasing_le; first by apply Rlt_0_1.
@@ -174,16 +142,14 @@ Variable P : dist X.
 Variable epsilon : R.
 Hypothesis ep_pos : (0 < epsilon)%R.
 
-Local Notation "'L_0'" := (L_0 n' P epsilon).
-Local Notation "'L_1'" := (L_1 X n').
+Local Notation "'L0'" := (L0 n' P epsilon).
+Local Notation "'L1'" := (L1 X n').
 
 Lemma le_n_L1_tuple :
-  #|[finType of n.-tuple X] | <= #|[finType of (Zabs_nat L_1).-tuple bool]|.
+  #|[finType of n.-tuple X] | <= #|[finType of (Zabs_nat L1).-tuple bool]|.
 Proof.
-apply /leP.
-do 2 rewrite -cardsT.
-move : (card_tuple_le_L1 n' P).
-by apply INR_le.
+rewrite -!cardsT.
+by apply /leP; apply (INR_le _ _ (card_tuple_le_L1 n' P)).
 Qed.
 
 Definition not_enc_typ x := enum_val (widen_ord le_n_L1_tuple (enum_rank x)).
@@ -193,11 +159,16 @@ Proof.
 by move=> a1 a2 [] /enum_val_inj [] /ord_inj/enum_rank_inj.
 Qed.
 
+Definition enc_typ1 x :=
+ let i := seq.index x (enum (`TS P n epsilon))
+ in Tuple (size_nat2bin i (Zabs_nat L0)).
+
 Definition enc_typ x :=
  let i := seq.index x (enum (`TS P n epsilon))
- in Tuple (size_nat2bin i (Zabs_nat L_0)).
+ in nat2bin i (Zabs_nat L0).
 
-Definition f : v_encT X n := fun x =>
+
+Definition f : var_enc X n := fun x =>
   if x \in `TS P n epsilon then
     true :: enc_typ x
   else 
@@ -214,7 +185,7 @@ case: ifP => Ht1.
   case => H.
   have {H}H : seq.index t1 (enum (`TS P n epsilon)) =
               seq.index t2 (enum (`TS P n epsilon)).
-    apply nat2bin_inj with (Zabs_nat L_0) => //.
+    apply nat2bin_inj with (Zabs_nat L0) => //.
     apply leq_trans with #|`TS P n epsilon|.
       apply seq_index_enum_card => //; first by exact: enum_uniq.
       apply/leP.
@@ -262,7 +233,7 @@ move: (H x).
 by rewrite eqxx.
 Qed.
 
-Definition extension (enc : v_encT X n) (x : seq (n.-tuple X)) :=
+Definition extension (enc : var_enc X n) (x : seq (n.-tuple X)) :=
 flatten (map enc x).
 
 Lemma uniquely_decodable : injective (extension f).
@@ -288,7 +259,7 @@ End enc_dec_def.
 
 Section exp_len_cw_def.
 Variable (X : finType) (n :nat).
-Variable f : v_encT X n.
+Variable f : var_enc X n.
 Variable P : dist X.
 
 Definition exp_len_cw := `E (mkRvar (P `^ n) (fun x => INR (size (f x)))).
@@ -303,22 +274,22 @@ Variable epsilon:R.
 Hypothesis ep_pos: 0 < epsilon.
 Hypothesis aepbound : aep_bound P epsilon <= INR n.
 
-Local Notation "'L_0'" := (L_0 n' P epsilon).
-Local Notation "'L_1'" := (L_1 X n').
+Local Notation "'L0'" := (L0 n' P epsilon).
+Local Notation "'L1'" := (L1 X n').
 
-Lemma fdef_in x : x \in `TS P n epsilon -> INR (size (f P epsilon x)) = (IZR L_0) + 1.
+Lemma fdef_in x : x \in `TS P n epsilon -> INR (size (f P epsilon x)) = (IZR L0) + 1.
 Proof.
 move => H.
-rewrite /f H /= size_pad_seqL IZR_INR_to_nat; last by apply RltW, L_0_pos.
+rewrite /f H /= size_pad_seqL IZR_INR_to_nat; last by apply RltW, L0_pos.
 by rewrite -addn1; first rewrite plus_INR.
 Qed.
 
-Lemma fdef_notin x : x \in ~: `TS P n epsilon -> INR (size (f P epsilon x)) = (IZR L_1) + 1.
+Lemma fdef_notin x : x \in ~: `TS P n epsilon -> INR (size (f P epsilon x)) = (IZR L1) + 1.
 Proof.
-rewrite /f in_setC => H.
-apply negbTE in H.
-rewrite H /= -addn1 size_tuple plus_INR.
-by rewrite -IZR_INR_to_nat ; last apply L_1_nonneg.
+rewrite /f in_setC.
+move/negbTE ->.
+rewrite /= -addn1 size_tuple plus_INR.
+by rewrite -IZR_INR_to_nat; last apply L1_nonneg.
 Qed.
 
 Lemma Hexp_len_cw : 
@@ -331,48 +302,41 @@ Qed.
 
 Lemma f_typ_in :  
   \rsum_(x| x \in `TS P n epsilon) P `^ n (x) * (INR (size (f P epsilon x)) ) =  
-  \rsum_(x| x \in `TS P n epsilon) P `^ n (x) * (IZR L_0 + 1).
+  \rsum_(x| x \in `TS P n epsilon) P `^ n (x) * (IZR L0 + 1).
 Proof.
-elim: (index_enum [finType of n.-tuple X]) => [| hd tl IH].
-- by rewrite !big_nil.
-- rewrite !big_cons. 
-  case : ifP => H; last done.
-  by rewrite fdef_in; [rewrite IH | done]. 
+apply eq_bigr=> i H.
+apply Rmult_eq_compat_l.
+by apply fdef_in.
 Qed.
 
 Lemma f_typ_notin:
   \rsum_(x| x \in ~:(`TS P n epsilon)) P `^ n (x) * (INR (size (f P epsilon x)) )
-  = \rsum_(x| x \in ~:(`TS P n epsilon)) P `^ n (x) * (IZR L_1 + 1) .
+  = \rsum_(x| x \in ~:(`TS P n epsilon)) P `^ n (x) * (IZR L1 + 1) .
 Proof.
-elim: (index_enum [finType of n.-tuple X]) => [| hd tl IH].
-- by rewrite !big_nil.
-- rewrite !big_cons. 
-  case : ifP => H; last done.
-  by rewrite fdef_notin; [rewrite IH | done]. 
+apply eq_bigr=> i H.
+apply Rmult_eq_compat_l.
+by apply fdef_notin.
 Qed.
 
-Lemma theorem_helper : \rsum_(x| x \in (`TS P n epsilon)) P `^ n (x) * (IZR L_0 + 1)
-                       +  \rsum_(x| x \in ~:(`TS P n epsilon)) P `^ n (x) * (IZR L_1 + 1) 
-                       <=  (IZR L_0 + 1) + epsilon * (IZR L_1 + 1) .
+Lemma theorem_helper : \rsum_(x| x \in (`TS P n epsilon)) P `^ n (x) * (IZR L0 + 1)
+                       +  \rsum_(x| x \in ~:(`TS P n epsilon)) P `^ n (x) * (IZR L1 + 1) 
+                       <=  (IZR L0 + 1) + epsilon * (IZR L1 + 1) .
 Proof.
-do 2 rewrite rsum_fr_rf.
+rewrite -!(big_morph _ (morph_mulRDl _) (mul0R _)) mulRC.
 rewrite rsum_complement_dist.
 apply Rplus_le_compat.
-  rewrite {2}(_ : _ + _  =  (IZR L_0 + 1) * 1); last field. 
-  apply Rmult_le_compat_l; first apply Rplus_le_le_0_compat; first by apply RltW,L_0_pos.
-    by apply Rle_0_1.
+  rewrite -[X in _ <= X]mulR1.
+  apply Rmult_le_compat_l. 
+    apply Rplus_le_le_0_compat; by [ apply RltW, L0_pos| apply Rle_0_1].
   rewrite -(pmf1 P`^ n). 
-  apply Rle_big_f_X_Y; first move=> x; last by move=> x H.
-  by apply pmf.
-rewrite mulRC.
+  apply Rle_big_f_X_Y=> //; first move=> ?; apply pmf.
 apply Rmult_le_compat_r.
-  by apply Rplus_le_le_0_compat; [apply L_1_nonneg| fourier].
+  by apply (Rplus_le_le_0_compat _ _ (L1_nonneg _ P) Rle_0_1).
 apply Rminus_le.
-rewrite (_ : _ - _ - _ = 1 - epsilon - \rsum_(x|x \in `TS P n epsilon) P `^ n x)
-; last first.
-  rewrite /=.
-  field.
-by apply Rle_minus, Rge_le, Pr_TS_1; by [apply ep_pos | apply aepbound].
+rewrite /Rminus addRC addRA.
+apply Rle_minus.
+rewrite addRC.
+by apply Rge_le; apply Pr_TS_1.
 Qed.
 
 End main_pre.
@@ -531,7 +495,7 @@ rewrite IZR_INR_to_nat; last first.
 by apply RltW, lt_INR, n3_le_n.
 Qed. 
 
-Lemma v_scode_helper : exists (f : v_encT X n) (phi : v_decT X n) , 
+Lemma v_scode_helper : exists (f : var_enc X n) (phi : var_dec X n) , 
                          (forall x, phi (f x) = x) /\
                          (exp_len_cw f P) / (INR n) < (`H P + epsilon).
 Proof.
@@ -547,7 +511,7 @@ rewrite f_typ_notin f_typ_in; last apply ep'_pos.
 eapply Rle_lt_trans.
   apply theorem_helper; first apply ep'_pos.
   by apply n0_n_3.
-rewrite /L_0 /L_1.
+rewrite /L0 /L1.
 eapply Rle_lt_trans.
   apply Rplus_le_compat.
     by apply Rplus_le_compat; by [apply RltW, ceil_upper | apply Rle_refl].
@@ -614,14 +578,15 @@ Let n := n'.+1.
 Variable P : dist X.
 Variable epsilon : R.
 Hypothesis ep_pos : 0 < epsilon .
-(*Definition n0 := maxn (Z.to_nat (ceil (INR 2 / (INR 1 + log (INR #|X|))))) 
-                     (maxn (Z.to_nat (ceil (8 / epsilon)))
-                     (Z.to_nat (ceil (aep_sigma2 P/ epsilon' ^ 3)))).*)
+(*Definition n0 := maxn 
+          (Z.to_nat (ceil (INR 2 / (INR 1 + log (INR #|X|))))) 
+          (maxn (Z.to_nat (ceil (8 / epsilon)))
+          (Z.to_nat (ceil (aep_sigma2 P/ epsilon' ^ 3)))).*)
 Local Notation "'n0'" := (n0 P epsilon).
 
 
 Theorem vscode : (n0 < n)%nat -> 
-  exists f : v_encT X n,
+  exists f : var_enc X n,
     injective f /\
     exp_len_cw f P / INR n < `H P + epsilon.
 Proof.
