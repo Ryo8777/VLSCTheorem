@@ -46,19 +46,6 @@ Qed.
 
 End Rsum_lemma.
 
-Section Rsum_probability.
-Variable X : finType.
-Variable S : {set  X}.
-Variable P : dist X.
-
-Lemma rsum_complement_dist :  \rsum_(x| x \in ~:S) P x
-               =  (1 - \rsum_(x| x \in S) P x).
-Proof.
-rewrite -(pmf1 P) rsum_type_set (rsum_S_not_S _ S); field.
-Qed.
-
-End Rsum_probability.
-
 Section lemma_enc_dec.
 Variable (X : finType) (n' : nat).
 Let n := n'.+1.
@@ -78,22 +65,20 @@ Definition L0 := ceil (INR n * (`H P + epsilon)).
 Lemma L0_pos: 0 < IZR L0.
 Proof.
 rewrite /L0.
-apply Rlt_le_trans with (INR n * (`H P + epsilon)).
-  rewrite -(mulR0 0).
-  apply Rmult_le_0_lt_compat; first by apply Rle_refl.
-  by apply Rle_refl.
-  apply lt_0_INR; by apply/ltP.
-  by apply Rplus_le_lt_0_compat; first apply entropy_pos; last apply ep_pos.
-by apply ceil_bottom.
+apply (Rlt_le_trans _ (INR n * (`H P + epsilon))); last by apply ceil_bottom.
+rewrite -(mulR0 0).
+apply (Rmult_le_0_lt_compat _ _ _ _ (Rle_refl _) (Rle_refl _)).
+apply lt_0_INR; by apply/ltP.
+by apply (Rplus_le_lt_0_compat _ _ (entropy_pos P) ep_pos).
 Qed.
 
 Definition L1 :=  ceil (log (INR #| [set : n.-tuple X]|)).
   
 Lemma L1_nonneg: 0 <= IZR L1.
 Proof.
-apply Rle_trans with (log (INR #|[set: n.-tuple X]|)); last by apply ceil_bottom.
+apply (Rle_trans _ (log (INR #|[set: n.-tuple X]|))); last by apply ceil_bottom.
 rewrite -log_1.
-apply log_increasing_le; first by apply Rlt_0_1.
+apply (log_increasing_le Rlt_0_1).
 rewrite cardsT card_tuple -INR_pow_expn.
 by apply pow_R1_Rle, Xcard. 
 Qed.
@@ -102,12 +87,12 @@ Lemma IZR_INR_to_nat z: 0 <= IZR z -> IZR z = INR (Zabs_nat z).
 Proof.
 move => H.
 rewrite -INR_Zabs_nat ;last by apply le_IZR.
-by rewrite Zabs2Nat.abs_nat_nonneg; [ done | apply le_IZR].
+by rewrite Zabs2Nat.abs_nat_nonneg //; first apply le_IZR.
 Qed.
 
 Lemma card_TS_le_L0 : INR #| `TS P n epsilon | <= INR #|[ set : (Zabs_nat L0).-tuple bool]|. 
 Proof.
-eapply Rle_trans; first by apply TS_sup.
+apply (Rle_trans _ _ _ (TS_sup _ _ _)).
 rewrite cardsT /= card_tuple /= card_bool -exp2_pow2.
 apply exp2_le_increasing.
 rewrite -IZR_INR_to_nat; last apply RltW, L0_pos.
@@ -118,17 +103,18 @@ Lemma card_tuple_le_L1 : INR #| [set: n.-tuple X]| <= INR #| [set: (Zabs_nat L1)
 Proof.
 rewrite /L1 cardsT card_tuple.
 rewrite {1}(_ :  INR (#|X| ^ n) = exp2 (log ( INR (#|X|^n)))); last first.
-  rewrite exp2_log; first done; last rewrite -INR_pow_expn.
-  apply pow_lt, Rlt_le_trans with 1; by [apply Rlt_0_1 | apply Xcard].
+  rewrite exp2_log //; last rewrite -INR_pow_expn.
+  apply pow_lt.
+  apply (Rlt_le_trans _ 1 _ Rlt_0_1 Xcard).
 rewrite cardsT card_tuple card_bool -exp2_pow2.
 apply exp2_le_increasing.
 rewrite /L1 -IZR_INR_to_nat; last first.
-  apply Rle_trans with (log (INR (#|X|^n))); last by apply ceil_bottom.  
+  apply (Rle_trans _ (log (INR (#|X|^n)))); last by apply ceil_bottom.  
   rewrite -log_1. 
   apply log_increasing_le; first by apply Rlt_0_1.
   rewrite -INR_pow_expn.
   by apply pow_R1_Rle, Xcard. 
-by eapply Rle_trans ; [ apply Rle_refl | apply ceil_bottom].
+by apply (Rle_trans _ _ _ (Rle_refl _) (ceil_bottom _)).
 Qed.
 
 End lemma_enc_dec.
@@ -159,14 +145,13 @@ Proof.
 by move=> a1 a2 [] /enum_val_inj [] /ord_inj/enum_rank_inj.
 Qed.
 
-Definition enc_typ1 x :=
+Definition enc_typ x :=
  let i := seq.index x (enum (`TS P n epsilon))
  in Tuple (size_nat2bin i (Zabs_nat L0)).
 
-Definition enc_typ x :=
- let i := seq.index x (enum (`TS P n epsilon))
- in nat2bin i (Zabs_nat L0).
-
+(* Definition enc_typ x := *)
+(*  let i := seq.index x (enum (`TS P n epsilon)) *)
+(*  in nat2bin i (Zabs_nat L0). *)
 
 Definition f : var_enc X n := fun x =>
   if x \in `TS P n epsilon then
@@ -185,7 +170,7 @@ case: ifP => Ht1.
   case => H.
   have {H}H : seq.index t1 (enum (`TS P n epsilon)) =
               seq.index t2 (enum (`TS P n epsilon)).
-    apply nat2bin_inj with (Zabs_nat L0) => //.
+    apply (nat2bin_inj (Zabs_nat L0)) => //.
     apply leq_trans with #|`TS P n epsilon|.
       apply seq_index_enum_card => //; first by exact: enum_uniq.
       apply/leP.
@@ -216,10 +201,10 @@ case: (pickP _).
   exact [tuple of nseq n x].
 move=> abs H'.
 suff : False by done.
-rewrite -cardsT in H.
-rewrite card_gt0 in H.
-case/set0Pn : H => x Hx.
-by rewrite abs in Hx.
+move: H.
+rewrite -cardsT card_gt0.
+case/set0Pn => ?.
+by rewrite abs.
 Defined.
 
 Definition phi y := if [ pick x | f x == y ] is Some x then x else phi_def.
@@ -240,15 +225,15 @@ Lemma uniquely_decodable : injective (extension f).
 Proof.
 move =>t1.
 elim t1=>[t2|a la H t2].
-by case t2=>[|a la];[done | rewrite /extension /f /=; case: ifP].
+by case t2=>[|a la] //; rewrite /extension /f /=; case: ifP.
 case t2=>[|b lb]; [by rewrite /extension /f /=; case: ifP | rewrite /extension /= /f ].
 case: ifP=> [ainT | aninT].
-  case: ifP=> binT; last done.
+  case: ifP=> binT //.
   move /eqP.
   rewrite  -/f eqseq_cat; last by rewrite /= !/nat2bin !size_pad_seqL.
   case /andP=>[/eqP eq_ab ] /eqP /H ->.
   congr (_ :: _); by apply f_inj; rewrite /f ainT binT.
-case: ifP=> bninT; first done.
+case: ifP=> bninT //.
 move /eqP.
 rewrite  -/f eqseq_cat; last by rewrite !size_tuple. 
 case /andP=>[/eqP eq_ab ] /eqP /H ->.
@@ -323,11 +308,12 @@ Lemma theorem_helper : \rsum_(x| x \in (`TS P n epsilon)) P `^ n (x) * (IZR L0 +
                        <=  (IZR L0 + 1) + epsilon * (IZR L1 + 1) .
 Proof.
 rewrite -!(big_morph _ (morph_mulRDl _) (mul0R _)) mulRC.
-rewrite rsum_complement_dist.
+rewrite (_ : \rsum_(i | i \in ~: `TS P n epsilon) P `^ n i = 1 - \rsum_(i | i \in `TS P n epsilon) P `^ n i); last first. 
+  rewrite -(pmf1 P`^n) rsum_type_set (rsum_S_not_S _ (`TS P n epsilon)) ; field.
 apply Rplus_le_compat.
   rewrite -[X in _ <= X]mulR1.
   apply Rmult_le_compat_l. 
-    apply Rplus_le_le_0_compat; by [ apply RltW, L0_pos| apply Rle_0_1].
+    apply Rplus_le_le_0_compat; by [apply RltW, L0_pos| apply Rle_0_1].
   rewrite -(pmf1 P`^ n). 
   apply Rle_big_f_X_Y=> //; first move=> ?; apply pmf.
 apply Rmult_le_compat_r.
@@ -404,62 +390,51 @@ Proof.
 rewrite (_ : 2 * _ / _ = epsilon * (2 /  (3 * (1 + log (INR #|X|))) / INR n)); last first.
   field; by case: n0_n_helper2.
 apply Rmult_lt_compat_l; first by apply ep_pos.
-apply Rmult_lt_reg_l with 3; first by fourier.
+apply (Rmult_lt_reg_l 3); first by fourier.
 rewrite (_ : 3 * _ = 2 * 3 / 3 / (1 + log (INR #|X|)) * / INR n); last first.
   field; by case: n0_n_helper2.
-rewrite /Rdiv Rinv_r_simpl_l; last first.
-  move=> ?; fourier.
-apply Rmult_lt_reg_l with (INR n). 
-  apply lt_0_INR; by apply/ltP.
+rewrite /Rdiv Rinv_r_simpl_l; last by move=> ?; fourier.
+apply (Rmult_lt_reg_l (INR n)); first by apply lt_0_INR; apply/ltP.
 rewrite (_ : _ * _ = (2 * / (1 + log (INR #|X|)) * INR n  * / INR n)); last first.
   field; by case: n0_n_helper2.
-rewrite Rinv_r_simpl_l; last by apply n_non0.
-eapply Rle_lt_trans; first by apply ceil_bottom.
+rewrite (Rinv_r_simpl_l _ _ n_non0).
+apply (Rle_lt_trans _ _ _ (ceil_bottom _)).
 rewrite IZR_INR_to_nat; last first.
-  eapply Rle_trans; last by apply ceil_bottom.
-  apply Rmult_le_reg_l with (1 + log (INR #|X|)); last first.
+  apply (Rle_trans _ (2 * / (1 + log (INR #|X|)))); last by apply ceil_bottom.
+  apply (Rmult_le_reg_l (1 + log (INR #|X|))); last first.
     rewrite (_ : _ * (_ * / _) = 
                  2 * (1 + log (INR #|X|)) * / (1 + log (INR #|X|))); last first.
       field; exact n0_n_helper1.
-    rewrite Rinv_r_simpl_l; last by exact n0_n_helper1.
+    rewrite (Rinv_r_simpl_l _ _ n0_n_helper1).
     rewrite mulR0; fourier.
-  apply Rplus_lt_le_0_compat; first by apply Rlt_0_1.
+  apply (Rplus_lt_le_0_compat _ _ Rlt_0_1).
   rewrite -log_1.
   apply log_increasing_le; first by fourier.
-  apply Xcard; exact P.
+  apply (Xcard P).
 rewrite Rinv_r; last by move=> ?; fourier.
 rewrite mulR1.
-apply lt_INR.
-exact n1_le_n.
+apply (lt_INR _ _ n1_le_n).
 Qed.
 
 Lemma n0_n_2 :  2 * / INR n  < epsilon / 4.
 Proof.
-apply Rmult_lt_reg_l with 4; first fourier.
-rewrite /Rdiv (mulRC epsilon (/ 4)) mulRA mulRA Rinv_r ; last first.
-  move => ? ; fourier.
-apply Rmult_lt_reg_l with (INR n).
-  by apply lt_0_INR; apply /ltP. 
-rewrite (_ : _ * (_ * _ * / _) = 8 * INR n * / INR n); last first.
-  field; exact n_non0.
-rewrite Rinv_r_simpl_l; last by exact n_non0.
-apply Rmult_lt_reg_l with ( / epsilon).
-  apply Rmult_lt_reg_l with epsilon ; first by apply  ep_pos.
-  rewrite Rinv_r.
-    by rewrite mulR0; apply Rlt_0_1.
+apply (Rmult_lt_reg_l 4); first fourier.
+rewrite /Rdiv (mulRC epsilon (/ 4)) mulRA mulRA Rinv_r ; last by move => ? ; fourier.
+apply (Rmult_lt_reg_l (INR n)); first by apply lt_0_INR; apply /ltP. 
+rewrite (_ : _ * (_ * _ * / _) = 8 * INR n * / INR n); last by field; exact n_non0.
+rewrite (Rinv_r_simpl_l _ _ n_non0).
+apply (Rmult_lt_reg_l ( / epsilon)).
+  apply (Rmult_lt_reg_l epsilon _ _ ep_pos).
+  rewrite Rinv_r; first by rewrite mulR0; apply Rlt_0_1.
   by apply nesym, Rlt_not_eq, ep_pos.
 rewrite mul1R (mulRC (/ epsilon) (INR n * epsilon)).
-rewrite Rinv_r_simpl_l; last first.
-  by apply nesym, Rlt_not_eq, ep_pos.
+rewrite Rinv_r_simpl_l; last by apply nesym, Rlt_not_eq, ep_pos.
 rewrite mulRC.
-apply Rle_lt_trans with (IZR (ceil (8 * / epsilon))).
-  by apply ceil_bottom.
+apply (Rle_lt_trans _ (IZR (ceil (8 * / epsilon))) _ (ceil_bottom _)).
 rewrite IZR_INR_to_nat; first by apply lt_INR, n2_le_n.
-eapply Rle_trans;  last first.
-  apply ceil_bottom.
-apply Rmult_le_reg_l with epsilon; first exact ep_pos.
-rewrite (mulRC 8  (/ epsilon)) mulRA Rinv_r; last first.
- by apply nesym, Rlt_not_eq, ep_pos.
+eapply Rle_trans;  last by apply ceil_bottom.
+apply (Rmult_le_reg_l epsilon _ _ ep_pos).
+rewrite (mulRC 8  (/ epsilon)) mulRA Rinv_r; last by apply nesym, Rlt_not_eq, ep_pos.
 rewrite mulR0; fourier.
 Qed.
 
@@ -467,29 +442,26 @@ Lemma ep'_pos : 0 < epsilon'.
 Proof. 
 rewrite /epsilon' /Rdiv. 
 rewrite -(mulR0 epsilon).
-apply Rmult_lt_compat_l; first by apply ep_pos.
+apply (Rmult_lt_compat_l _ _ _ ep_pos).
 rewrite -(mul1R ( / (3 + 3 * log (INR #|X|)))).
-apply Rlt_mult_inv_pos; first by apply Rlt_0_1.
+apply (Rlt_mult_inv_pos _ _ Rlt_0_1).
 apply Rplus_lt_le_0_compat; first by apply Rlt_zero_pos_plus1, Rlt_R0_R2.
 apply Rmult_le_pos; first by apply Rle_zero_pos_plus1, Rle_zero_pos_plus1, Rle_0_1.
 rewrite -log_1.
-by apply log_increasing_le; [apply Rlt_0_1 | apply Xcard].
+by apply (log_increasing_le Rlt_0_1 (Xcard P)).
 Qed.
+
 
 Lemma n0_n_3 : aep_bound P epsilon' <= INR n.
 Proof.
 rewrite /aep_bound .
-eapply Rle_trans.
-  by apply ceil_bottom.
+eapply (Rle_trans _ _ _ (ceil_bottom _)).
 rewrite IZR_INR_to_nat; last first.
-  eapply Rle_trans; last first.
-    by apply ceil_bottom.
-  apply Rmult_le_reg_l with ( epsilon' ^ 3). 
-    by apply pow_gt0; first by apply ep'_pos.
+  apply (Rle_trans _ (aep_sigma2 P / epsilon' ^ 3)); last by apply (ceil_bottom _).
+  apply (Rmult_le_reg_l ( epsilon' ^ 3) _ _ (pow_gt0 ep'_pos 3)).
   rewrite (_ : _ * ( _ / _) = aep_sigma2 P * epsilon' ^ 3  * / (epsilon' ^ 3)); last first.
     by field; apply nesym, Rlt_not_eq, ep'_pos.
-  rewrite Rinv_r_simpl_l; last first.
-    by apply nesym, Rlt_not_eq, pow_gt0, ep'_pos.
+  rewrite Rinv_r_simpl_l; last by apply nesym, Rlt_not_eq, pow_gt0, ep'_pos.
   rewrite mulR0.
   by apply aep_sigma2_pos.
 by apply RltW, lt_INR, n3_le_n.
@@ -502,14 +474,13 @@ Proof.
 exists (f P epsilon') .
 exists (phi n' P epsilon').
 split=> [ x |]; first  by apply (phi_f _ ep'_pos).
-apply (Rmult_lt_reg_r (INR n)).
-  by apply lt_0_INR; apply /ltP.
+apply (Rmult_lt_reg_r (INR n)); first by apply lt_0_INR; apply /ltP.
 rewrite /Rdiv -mulRA -(mulRC (INR n)).
-rewrite Rinv_r; last by apply n_non0.
+rewrite (Rinv_r _ n_non0).
 rewrite mulR1 Hexp_len_cw rsum_type_set (rsum_S_not_S _ (`TS P n epsilon')).
 rewrite f_typ_notin f_typ_in; last apply ep'_pos.
 eapply Rle_lt_trans.
-  apply theorem_helper; first apply ep'_pos.
+  apply (theorem_helper _  ep'_pos).
   by apply n0_n_3.
 rewrite /L0 /L1.
 eapply Rle_lt_trans.
@@ -558,14 +529,13 @@ rewrite {1}(_ : epsilon / _ =
 rewrite (_ : _ / _ / _ * _ =
              epsilon  * (1 + log (INR #|X|))/ (1 + log (INR #|X|)) /3); last first.
   field; by apply n0_n_helper1.
-rewrite /Rdiv Rinv_r_simpl_l; last first.
-  by apply n0_n_helper1.
+rewrite /Rdiv (Rinv_r_simpl_l _ _ n0_n_helper1).
 eapply Rle_lt_trans.
-  apply Rplus_le_compat; last by apply Rlt_le, n0_n_1.
-    by apply Rplus_le_compat; by [apply Rlt_le, n0_n_2 | apply Rle_refl].
+  apply Rplus_le_compat; last by apply RltW, n0_n_1.
+    by apply Rplus_le_compat; by [apply RltW, n0_n_2 | apply Rle_refl].
 rewrite (_ : _ / _ + _ / _ + _ / _ = epsilon * ( / 4 + / 3 + / 3)) ; last field.
 rewrite -{2}(mulR1 epsilon).
-apply Rmult_lt_compat_l; first by apply ep_pos.
+apply (Rmult_lt_compat_l _ _ _ ep_pos).
 fourier.
 Qed.
 
