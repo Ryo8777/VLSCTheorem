@@ -199,35 +199,37 @@ End logsum.
 
 Section logsum_n.
 
-Variable n : nat.
 
-Lemma Rlt_big_0_posf_nat: forall f : nat -> R+, (exists a, a \in index_iota 0 n /\ 0 < f a) -> 0 < \rsum_(0<= i < n) f i.
+Lemma Rlt_big_0_posf_nat n m: forall f : nat -> R+, (exists a, a \in index_iota m n /\ 0 < f a) -> 0 < \rsum_(m<= i < n) f i.
 Proof.
 move=>f; case=> a [ain fa_pos].
 rewrite big_seq -big_seq /index_enum.
 rewrite (bigD1_seq a) // /=; last exact: iota_uniq.
 apply: (Rplus_lt_le_0_compat _ _ fa_pos).
-rewrite big_mkord; apply: Rle_big_0_P_g; by move: (Rle0f f).
+rewrite -(add0n m) big_addn.
+by rewrite big_mkord; apply: Rle_big_0_P_g=> i _; move:(Rle0f f).
 Qed.
 
+Variable n m: nat.
 Variable f g: nat -> R+.
 Hypothesis f_dom_by_g : f << g.
+Hypothesis le_m_n: (leq m n)%N.
 
-Lemma log_sum_inequality_nat :
-  \rsum_(0 <= i < n) (f i * (log (f i) - log (g i))) >= 
-  (\rsum_(0 <= i < n) f i) * (log (\rsum_(0 <= i < n) f i) - log (\rsum_(0 <= i < n) g i)).
+Lemma log_sum_inequality_nat:
+  \rsum_(m <= i < n) (f i * (log (f i) - log (g i))) >= 
+  (\rsum_(m <= i < n) f i) * (log (\rsum_(m <= i < n) f i) - log (\rsum_(m <= i < n) g i)).
 Proof.
-rewrite [X in X >= _](_ : _ = - \rsum_(0 <= i < n) f i * (log (g i) - log (f i))); last first.
+rewrite [X in X >= _](_ : _ = - \rsum_(m <= i < n) f i * (log (g i) - log (f i))); last first.
   rewrite (big_morph _ morph_Ropp Ropp_0).
   by apply:eq_bigr => ? _; rewrite -Ropp_mult_distr_r_reverse Ropp_minus_distr.
-rewrite [X in _ >= X](_ : _ = - (\rsum_(0 <= i < n) f i) * (log (\rsum_(0 <= i < n) g i) - log (\rsum_(0 <= i < n) f i))); last first.
+rewrite [X in _ >= X](_ : _ = - (\rsum_(m <= i < n) f i) * (log (\rsum_(m <= i < n) g i) - log (\rsum_(m <= i < n) f i))); last first.
   by rewrite Ropp_mult_distr_l_reverse -Ropp_mult_distr_r_reverse Ropp_minus_distr.
 rewrite Ropp_mult_distr_l_reverse; apply:Ropp_le_ge_contravar; apply:Rminus_le.
 rewrite {1}/Rminus (big_morph _ (morph_mulRDl _) (mul0R _)) (big_morph _ morph_Ropp Ropp_0).
-rewrite [X in X <= 0](_ : _ = \rsum_(0 <= i < n) f i * (log (g i) - log (f i) - (log (\rsum_(0 <= j < n) g j) - (log (\rsum_(0 <= j< n) f j))))); last first.
+rewrite [X in X <= 0](_ : _ = \rsum_(m <= i < n) f i * (log (g i) - log (f i) - (log (\rsum_(m <= j < n) g j) - (log (\rsum_(m <= j< n) f j))))); last first.
   by rewrite -big_split; apply:eq_bigr=>i _; rewrite [in RHS]Rmult_minus_distr_l.
-rewrite [X in X <= 0](_ : _ = \rsum_(0 <= i < n) f i * (log (g i *
-      (\rsum_(0 <= j < n) f j)) - log (f i * (\rsum_(0 <= j < n) g
+rewrite [X in X <= 0](_ : _ = \rsum_(m <= i < n) f i * (log (g i *
+      (\rsum_(m <= j < n) f j)) - log (f i * (\rsum_(m <= j < n) g
       j)))); last first.
   apply: eq_big_nat=> i i_in.
   case:(Rle0f g i)=> [lt_0_gi | ].
@@ -235,50 +237,55 @@ rewrite [X in X <= 0](_ : _ = \rsum_(0 <= i < n) f i * (log (g i *
     apply: Rmult_eq_compat_l. 
     rewrite !log_mult//; last first. 
         apply:Rlt_big_0_posf_nat; apply:(ex_intro _ i).
-        by apply:conj=>//; rewrite mem_iota add0n subn0.
+        by apply:conj=>//; rewrite mem_iota subnKC //.
         apply:Rlt_big_0_posf_nat; apply:(ex_intro _ i).
-        by apply:conj=>//; rewrite mem_iota add0n subn0.
+        by apply:conj=>//; rewrite mem_iota subnKC //.
     rewrite /Rminus Ropp_minus_distr Ropp_plus_distr /Rminus -!addRA; apply:Rplus_eq_compat_l.
     by rewrite !addRA addRC [in RHS]addRC; apply:Rplus_eq_compat_l; rewrite addRC.
   by move/esym /(f_dom_by_g) ->; rewrite !mul0R.
-have: (0 <= \rsum_(i<-index_iota 0 n) g i)
-  by rewrite big_mkord; apply: Rle_big_0_P_g; move: (Rle0f g).
-case=> [lt_big_0| eq_big_0]; last first.
-  rewrite !big_mkord; apply:Rfourier_eqRL_to_le; apply:Req_0_rmul=> i _.
-  move:eq_big_0; rewrite big_mkord.
-  move/(Req_0_rmul_inv (ordinal_finType n) (pos_f g) (Rle0f g))=> gi_0.
-  have: g i = 0 by rewrite (gi_0 i).
+have: (0 <= \rsum_(i<-index_iota m n) g i).
+  by rewrite -(add0n m) big_addn big_mkord; apply: Rle_big_0_P_g=> i _; move:(Rle0f g).
+case=>[lt_big_0|]; last first.
+  rewrite -(add0n m) !big_addn !big_mkord=> eq_big_0.
+  apply:Rfourier_eqRL_to_le; apply:Req_0_rmul=> i _.
+  have Rle0g: forall x: ordinal_finType (n - m), 0 <= g (addn (@nat_of_ord _ x) m)%N.
+    by move=> x; apply:(Rle0f g).
+  move:eq_big_0.
+  move/(Req_0_rmul_inv _ _ Rle0g)=> gi_0.
+  have: g (addn i m)%N = 0 by rewrite (gi_0 i).
   by move/f_dom_by_g->; rewrite mul0R.
-apply:(Rmult_le_reg_r (\rsum_(i<-index_iota 0 n) g i) _ _ lt_big_0).
+apply:(Rmult_le_reg_r (\rsum_(i<-index_iota m n) g i) _ _ lt_big_0).
 rewrite mul0R (big_morph _ (morph_mulRDl _) (mul0R _)). 
-rewrite [X in X <= 0](_ : _ = \rsum_(0 <= j < n)
-                               f j * (\rsum_(0 <= k < n) g k) *
-                              (log (g j * (\rsum_(0 <= k < n) f k)) -
-                               log (f j * (\rsum_(0 <= k < n) g k)))); last first.
+rewrite [X in X <= 0](_ : _ = \rsum_(m <= j < n)
+                               f j * (\rsum_(m <= k < n) g k) *
+                              (log (g j * (\rsum_(m <= k < n) f k)) -
+                               log (f j * (\rsum_(m <= k < n) g k)))); last first.
   apply:eq_bigr=> i _.
   by rewrite -!mulRA;  apply: Rmult_eq_compat_l; rewrite mulRC.
-apply:(Rle_trans _ ((\rsum_(0 <= j < n) ((g j * (\rsum_(0 <= k < n) f k) - 
-                                       (f j * (\rsum_(0 <= k < n) g k))))) * log (exp 1))).
-  rewrite (big_morph _ (morph_mulRDl _) (mul0R _)) !big_mkord.
+apply:(Rle_trans _ ((\rsum_(m <= j < n) ((g j * (\rsum_(m <= k < n) f k) - 
+                                       (f j * (\rsum_(m <= k < n) g k))))) * log (exp 1))).
+  rewrite (big_morph _ (morph_mulRDl _) (mul0R _)) -(add0n m) !big_addn !big_mkord.
+  move:lt_big_0; rewrite -(add0n m) big_addn big_mkord => le_big_0.
   apply:Rle_big_P_f_g => a _; apply: div_diff_ub.
-    by move/Rlt_le:lt_big_0; rewrite big_mkord=>?; apply: (Rmult_le_pos _ _ (Rle0f f a) _).   
-    have le_bigf_0: (0 <= \rsum_(i<n) f i) by apply: Rle_big_0_P_g; move: (Rle0f f).
-    by apply:(Rmult_le_pos _ _ (Rle0f g a) le_bigf_0).
+  apply:Rmult_le_pos; first by apply:(Rle0f f).
+  by apply: Rle_big_0_P_g; move: (Rle0f g).
+    have le_bigf_0: (0 <= \rsum_(i<n - (0 + m)) f (addn i (0 + m))) by apply: Rle_big_0_P_g; move: (Rle0f f).
+    apply:Rmult_le_pos=> //;first by apply (Rle0f g).
   case/Rmult_integral=> [ /f_dom_by_g -> |le_0_sum]; first by rewrite mul0R.
 (*  suff -> : f a = 0 by rewrite mul0R.*)
-  rewrite (_: f a = 0); first by rewrite mul0R.
+  rewrite (_: f (addn a (0 + m)) = 0); first by rewrite mul0R.
   apply:esym; move/esym:le_0_sum=> eq_0_sum.
-  by apply:(Req_0_rmul_inv (ordinal_finType n) (pos_f f) (Rle0f f) eq_0_sum).
+  have Rle0f': forall x: ordinal_finType (n - m), 0 <= f (addn (@nat_of_ord _ x) m)%N.
+    by move=> x; apply:(Rle0f f).
+  by apply:(Req_0_rmul_inv _ _  Rle0f' eq_0_sum).
 rewrite -{4}(mul0R (log (exp 1))); apply:Rmult_le_compat_r; first by apply:log_exp1_Rle_0.
 rewrite big_split /=.
 rewrite -(big_morph _ morph_Ropp Ropp_0) -!(big_morph _ (morph_mulRDl _) (mul0R _)).
 rewrite mulRC Rplus_opp_r; by apply:Rle_refl.
 Qed.
-
-
 End logsum_n.
 
-Section OrdinalTest.
+Section Ordinal.
 
 Variable T : finType.
 Variable f : T -> nat.
@@ -289,20 +296,18 @@ Lemma inordf_eq : f =1 inordf.
 Proof.
  move => t.  rewrite /inordf inordK //.  by apply: leq_bigmax.
 Qed.
-(*            inord k == the i : 'I_n.+1 with value k (n is inferred from the *)
-(*                       context).                                            *)
-End OrdinalTest.
-
+End Ordinal.
 Prenex Implicits inordf.
 
 Section big_pow.
 
-Variable n : nat.
+Variable n m: nat.
 Variable x : R.
+Hypothesis le_m_n : (leq m n)%N.
 Hypothesis neq_x_1 : x <> 1.
 (* (n0 <= i < n に拡張？) *)
 
-Lemma big_pow : \rsum_(0 <= i < n.+1) x ^ i =  (1 - (x ^ n.+1)) / (1 - x).
+Lemma big_pow : \rsum_(m <= i < n.+1) x ^ i =  x ^ m * (1 - (x ^ n.+1)) / (1 - x).
 Proof.
 move/nesym /Rminus_eq_contra:neq_x_1=> ?.
 elim n=> [|n' IH].
@@ -318,14 +323,14 @@ rewrite -(addRA 1 (- x ^ n'.+1) _) Rplus_opp_l addR0 mulRC.
 by rewrite Ropp_mult_distr_l_reverse.
 Qed.
 
-Lemma big_pow_from1 : \rsum_(1 <= i < n.+2) x ^ i = x * (1 - (x ^ n.+1)) / (1 - x).
+Lemma big_pow1 : \rsum_(1 <= i < n.+1) x ^ i = x * (1 - (x ^ n)) / (1 - x).
 Proof.
 move/nesym /Rminus_eq_contra:neq_x_1=> ?.
 elim n=> [|n' IH].
-  by rewrite /Rminus /Rdiv pow_1 big_nat1 pow_1 -mulRA -Rinv_r_sym // mulR1.
+  by rewrite big_nil/= /Rminus Rplus_opp_r mulRC /Rdiv -mulRA mul0R.
 rewrite big_add1 big_nat_recr /=.
-rewrite (_ : \rsum_(i<-index_iota 0 n'.+1) x * x ^ i = \rsum_(i<-index_iota 0 (n'.+2).-1) x ^ i.+1) //.
-rewrite (_ :  \rsum_(i<-index_iota 0 n'.+2.-1) x ^ i.+1 =  \rsum_(i<-index_iota 1 n'.+2) x ^ i); last by rewrite big_add1.
+rewrite (_ : \rsum_(i<-index_iota 0 n') x * x ^ i = \rsum_(i<-index_iota 0 (n'.+1).-1) x ^ i.+1) //.
+rewrite (_ :  \rsum_(i<-index_iota 0 n'.+1.-1) x ^ i.+1 =  \rsum_(i<-index_iota 1 n'.+1) x ^ i); last by rewrite big_add1.
 rewrite IH.
 apply (Rmult_eq_reg_r (1 - x));last by[].
 rewrite Rmult_plus_distr_r.
@@ -334,6 +339,13 @@ rewrite !mulR1 !tech_pow_Rmult.
 rewrite !Rmult_plus_distr_l -addRA !mulR1.
 apply Rplus_eq_compat_l.
 by rewrite !Ropp_mult_distr_r_reverse !tech_pow_Rmult addRA Rplus_opp_l add0R mulRC tech_pow_Rmult.
+Qed.
+
+Lemma log_pow r: 0 < r -> log (r ^ n) = (INR n) * log r.
+Proof.
+elim:n=> [|n' IH lt_0_r]; first by rewrite log_1 mul0R.
+rewrite log_mult//;first by rewrite IH // -addn1 addRC plus_INR Rmult_plus_distr_r mul1R.
+by apply:pow_lt.
 Qed.
 
 End big_pow.
@@ -359,53 +371,10 @@ apply/eqP/eqP; first by move/INR_eq; rewrite inordf_eq; apply:ord_inj.
 by rewrite inordf_eq; move->.
 Qed.
 
-Lemma b_sum r : r <> 0 -> \rsum_(1 <= i < (\max_(a| a \in A) to_nat a).+2) (exp2 (- r)) ^ i =  
-                 (exp2 (- r)) * (1 - ((exp2 (- r)) ^ (\max_(a| a \in A) to_nat a).+1)) / (1 - (exp2 (- r))).
-Proof.
-move/Rdichotomy.
-move=> neq_r0.
-rewrite big_pow_from1 //.
-apply:Rlt_dichotomy_converse.
-rewrite -exp2_0.
-case:neq_r0=>[less0 | more0].
-right.
-apply:exp2_increasing; apply Ropp_0_gt_lt_contravar.
-by apply Rlt_gt.
-left.
-apply exp2_increasing.
-by apply Ropp_lt_gt_0_contravar; apply Rlt_gt.
-Qed.
-
-Lemma b_less r : 0 < r -> \rsum_(1 <= i < (\max_(a| a \in A) to_nat a).+2) (exp2 (- r)) ^ i <=
-                (exp2 (- r)) / (1 - (exp2 (- r))).
-Proof.
-move=> r0.
-rewrite b_sum //; last first.
-  apply: Rlt_dichotomy_converse; right.
-  by apply:Rgt_lt.
-apply Rmult_le_compat_r.
-apply Rlt_le; apply Rinv_0_lt_compat.
-apply (Rplus_lt_reg_r (exp2 (- r))).
-rewrite addR0 addRC -addRA Rplus_opp_l addR0.
-rewrite -exp2_0.
-apply exp2_increasing.
-apply Ropp_lt_gt_0_contravar; last by apply:Rgt_lt.
-rewrite -[X in _ <= X]mulR1.
-apply: Rmult_le_compat_l; first by apply: RltW; apply exp_pos.
-rewrite -[X in _ <= X]addR0.
-apply: Rplus_le_compat_l.
-rewrite -Ropp_0.
-apply: Ropp_ge_le_contravar; apply: Rle_ge.
-apply: RltW; apply: pow_gt0.
-by apply: exp_pos.
-Qed.
-
-(* add the hypothesis Pr[X=0] = 0 *)
-
-Lemma Ex_nat : Ex X = 
+Lemma Ex_nat : `E X = 
                \rsum_(0 <= i < (\max_(a| a \in A) to_nat a).+1) (INR i) * Pr[X = (INR i)].
 Proof.
-rewrite Ex_Ex_alt /Ex_alt.
+rewrite /Ex_alt.
 rewrite (partition_big (fun a => (inordf to_nat) a) 
             (fun i => i \in 'I_(\max_(a | a \in A) to_nat a).+1)) /=; last done.
 set n1 := (\max_(a in A) to_nat a).
@@ -424,7 +393,7 @@ rewrite ( _ : \rsum_(i0 | inordf to_nat i0 == i) INR (to_nat i0) * P i0 =
  \rsum_(i0 |  to_nat i0 == i) INR (to_nat i0) * P i0); last by apply eq_bigl=> i0; rewrite inordf_eq.
 apply congr_big=> [//| x | i0].
 rewrite /= inE.
-symmetry.
+apply:esym.
 apply/eqP.
 case (bool_dec (to_nat x == i) true); first by move/eqP=>eqi; rewrite eqi eq_refl.
 move/not_true_is_false=> neqi. 
@@ -435,24 +404,29 @@ by move/eqP.
 by move/eqP->.
 Qed.
 
-Definition H_N := 
-\rsum_(0 <= i < (\max_(a| a \in A) to_nat a).+1) Pr[X = (INR i)] * log Pr[X = (INR i)].
+Definition HN := 
+- \rsum_(0 <= i < (\max_(a| a \in A) to_nat a).+1) Pr[X = (INR i)] * log Pr[X = (INR i)].
 
 Hypothesis X_pos: forall a, 0 < X a.
 
-Lemma Ex_pos : 0 < `E X .
+Lemma big_eq_iota0_1 f: \rsum_(0 <= i < (\max_(a| a \in A) to_nat a).+1) Pr[X = (INR i)] * f i=
+ \rsum_(1 <= i < (\max_(a| a \in A) to_nat a).+1) Pr[X = (INR i)] * f i.
 Proof.
-apply (Rlt_le_trans _ 1); first exact Rlt_zero_1.
-rewrite /Ex_alt -(pmf1 P) /=.
-apply Rle_big_P_f_g=>i _.
-rewrite -{1}(mul1R ( P i)). 
-apply Rmult_le_compat_r; first apply Rle0f.
-rewrite (_ : 1 = INR 1); last done.
-move: (X_pos i).
-rewrite /= (_ : 0 = INR 0); last done.
-move/INR_lt.
-move/lt_le_S => Xi_pos.
-by apply le_INR.
+rewrite big_ltn.
+rewrite (_: Pr[X = (INR 0)] = 0); first by rewrite mul0R add0R.
+apply:esym; apply:Req_0_rmul=> i.
+rewrite inE; move/eqP=> Xi_0.
+by move/Rlt_not_eq:(X_pos i); rewrite Xi_0.
+move/card_gt0P:(dist_support_not_empty P)=>[a _].
+by apply:ltn0Sn.
+Qed.
+
+Lemma Ex_nat_Xpos : \rsum_(0 <= i < (\max_(a| a \in A) to_nat a).+1) (INR i) * Pr[X = (INR i)]=
+ \rsum_(1 <= i < (\max_(a| a \in A) to_nat a).+1) (INR i) * Pr[X = (INR i)].
+Proof.
+rewrite big_ltn; first by rewrite mul0R add0R.
+move/card_gt0P:(dist_support_not_empty P)=>[a _].
+by apply:ltn0Sn.
 Qed.
 
 Lemma Ex_1 a : `E X = 1 -> (a \in [set x | P x != 0] ->  X a = 1) /\ 
@@ -466,10 +440,8 @@ have H : forall i : A, i \in A -> P i <= INR (to_nat i) * P i.
   apply Rmult_le_compat_r; first apply Rle0f.
   rewrite (_ : 1 = INR 1); last done.
   move: (X_pos i).
-  rewrite /= (_ : 0 = INR 0); last done.
-  move/INR_lt.
-  move/lt_le_S => Xi_pos.
-  by apply le_INR.
+  rewrite /= (_ : 0 = INR 0); last by[].
+  by move/INR_lt/lt_le_S => ?; apply:le_INR.
 move/Rle_big_eq.
 move=> H1 .
 apply H1 with a in H; last done.
@@ -485,15 +457,13 @@ move/Rmult_eq_reg_r=> H.
 by move/H.
 Qed.
 
-Lemma HN_0 : `E X = 1 -> H_N = 0.
+Lemma HN_0 : `E X = 1 -> HN = 0.
 Proof.
 move/Ex_1=> Ex_1.
-symmetry.
-rewrite /H_N.
-rewrite {1}(_ : 0 =  \rsum_(i<-index_iota 0 (\max_(a in A) to_nat a).+1) 0); last first.
-rewrite big_mkord.
-by apply Req_0_rmul=> i _.
-apply eq_bigr=> i _.
+rewrite /HN Ropp_eq_0_compat; first by [].
+rewrite {2}(_ : 0 =  \rsum_(i<-index_iota 0 (\max_(a in A) to_nat a).+1) 0); last first.
+  by rewrite big_mkord; apply Req_0_rmul=> i _.
+apply:eq_bigr=> i _.
 rewrite /@pr /Pr /=.
 case (Req_dec (INR i) 1)=>[ -> | neq0].
 have : \rsum_(a | a \in [set x | INR (to_nat x) == 1]) P a = 1.
@@ -534,9 +504,125 @@ by apply le_INR.
 Qed.
 
 Lemma converse_ : 
-  H_N <= `E X * log (`E X) - (`E X - 1) * log((`E X) -1).
+  HN <= `E X * log (`E X) - (`E X - 1) * log((`E X) -1).
 Proof.
-set alp := log(`E X) - log(`E X -1).
+pose alp := (`E X - 1) / `E X.
+have Ex_non0: `E X <> 0.
+  apply:nesym; apply:Rlt_not_eq.
+  by apply:(Rlt_le_trans _ _ _ Rlt_0_1 le_1_Ex).
+move/Rle_lt_or_eq_dec:le_1_Ex=>[less | eq]; last first.
+  rewrite -eq /Rminus Rplus_opp_r mul0R Ropp_0 addR0 mul1R log_1.
+  move/esym/HN_0:eq->; by apply Rle_refl.
+have EX_1 : 0 < `E X - 1.
+  apply:(Rplus_lt_reg_r 1).
+  by rewrite addR0 addRC -addRA Rplus_opp_l addR0.
+have le_alp_1 : alp < 1.
+    apply:(Rmult_lt_reg_r (`E X)); first by apply:(Rlt_trans _ _ _ (Rlt_0_1)).
+    rewrite /alp mul1R -mulRA -Rinv_l_sym // mulR1.
+    by apply:Rgt_lt; apply:(tech_Rgt_minus _ _ (Rlt_0_1)).
+have lt_0_alp : 0 < alp.
+  rewrite /alp.
+  apply:Rlt_mult_inv_pos=>//.
+  by apply:(Rle_lt_trans _ _ _ (Rle_0_1)).
+rewrite [X in _ <= X](_ :_ = log ( alp / (1 - alp)) - (log alp) * `E X); last first.
+  rewrite (_ :alp / (1 - alp) = `E X - 1); last first.
+    rewrite /alp (_: (1 - ( (`E X - 1) / `E X)) = / `E X).
+      by rewrite /Rdiv Rinv_involutive // -mulRA -Rinv_l_sym // mulR1.
+    rewrite /Rdiv Rmult_minus_distr_r -Rinv_r_sym // mul1R /Rminus Ropp_minus_distr.
+    by rewrite addRC -addRA Rplus_opp_l addR0.
+  rewrite /Rdiv !log_mult //; last by apply:Rinv_0_lt_compat;apply:(Rlt_trans _ _ _ (Rlt_0_1)).
+    rewrite log_Rinv //; last by apply:(Rlt_trans _ _ _ (Rlt_0_1)).
+    rewrite {1 2}/Rminus {1}Rmult_plus_distr_r Ropp_plus_distr addRA.
+    rewrite -Ropp_mult_distr_l_reverse -Ropp_mult_distr_l_reverse Ropp_involutive mul1R addRC. 
+    apply:Rplus_eq_compat_l.
+    rewrite [in RHS]mulRC Rmult_plus_distr_l addRC  Ropp_plus_distr.
+    by rewrite Ropp_mult_distr_r_reverse Ropp_mult_distr_l_reverse Ropp_involutive.
+apply:(Rle_trans _  (log (alp * (1 - (alp ^ (\max_(a| a \in A) to_nat a))) / (1 - alp))
+                     - log alp * `E X) _); last first.
+  apply:Rplus_le_compat_r.
+  apply:log_increasing_le.
+    apply:Rmult_lt_0_compat.
+      apply:Rmult_lt_0_compat=> //. 
+      apply:Rgt_lt; apply:Rgt_minus; apply:Rlt_gt.
+      apply pow_lt_1_compat.
+        apply:conj=> //; first by apply:Rlt_le.
+      apply:ltP. 
+      move/card_gt0P:(dist_support_not_empty P)=>[a _].
+      apply:(bigmax_sup a)=> //.
+      by move:(X_pos a); rewrite /X /= (_ : 0 = INR 0)//;move/INR_lt/ltP.
+    by apply:Rinv_0_lt_compat; apply:Rgt_lt; apply:Rgt_minus; apply:Rlt_gt.
+  rewrite /Rdiv -mulRA.
+  apply:Rmult_le_compat_l; first by apply:Rlt_le.
+  rewrite -{2}(mul1R (/ (1 - alp))) ; apply:Rmult_le_compat_r.
+    by apply:Rlt_le; apply:Rinv_0_lt_compat; apply:Rgt_lt; apply:Rgt_minus; apply:Rlt_gt.
+  rewrite -{2}(addR0 1) /Rminus; apply:Rplus_le_compat; first exact:Rle_refl.
+  apply:Rge_le; apply:Ropp_0_le_ge_contravar.
+  by apply:pow_le; apply:Rlt_le.
+rewrite -big_pow1; last by apply:Rlt_not_eq.
+rewrite Ex_nat. 
+rewrite mulRC (big_morph _ (morph_mulRDl _) (mul0R _)).
+apply:(Rplus_le_reg_r (\rsum_(i<-index_iota 0 (\max_(a in A) to_nat a).+1)
+      INR i * Pr[X = (INR i)] * log alp)).
+rewrite -addRA Rplus_opp_l addR0.
+rewrite [X in _ + X <= _](_ : _ = \rsum_(i<-index_iota 0 (\max_(a in A) to_nat a).+1)
+                                    Pr[X = (INR i)] * log (alp ^ i)); last first.
+  by apply:eq_bigr=>?;rewrite log_pow // [in RHS]mulRC -mulRA (mulRC _ (log alp)) mulRA.
+rewrite /HN addRC; move:Ropp_minus_distr; rewrite/Rminus; move<-.
+rewrite -(Ropp_involutive (log (\rsum_(i<-index_iota 1 (\max_(a in A) to_nat a).+1) alp ^ i))).
+apply:Ropp_le_contravar; apply:Rge_le.
+rewrite (big_morph _ morph_Ropp Ropp_0).
+rewrite -big_split /=.
+rewrite [X in X >= _](_ : _ =  \rsum_(i<-index_iota 0 (\max_(a in A) to_nat a).+1)
+      Pr[X = (INR i)] * (log Pr[X = (INR i)] - log (alp ^ i))); last first.
+  by apply:eq_bigr=>i _; rewrite Rmult_plus_distr_l Ropp_mult_distr_r_reverse.
+rewrite big_eq_iota0_1.
+rewrite[X in _ >= X](_ : _ =  1 * (0 -
+               log (\rsum_(i<-index_iota 1 (\max_(a in A) to_nat a).+1) alp ^ i))); last first.
+  by rewrite mul1R Rminus_0_l.
+have pmf1': \rsum_(i<-index_iota 1 (\max_(a in A) to_nat a).+1) Pr[X = (INR i)] = 1.
+  rewrite -dist_nat.
+  rewrite [in RHS]big_ltn.
+    rewrite (_: Pr[X = (INR 0)] = 0); first by rewrite add0R.
+    apply:esym; apply:Req_0_rmul=> i.
+    rewrite inE; move/eqP=> Xi_0.
+    by move/Rlt_not_eq:(X_pos i); rewrite Xi_0.
+  move/card_gt0P:(dist_support_not_empty P)=>[a _].
+  by apply:ltn0Sn.
+rewrite -{2}log_1 -pmf1'.
+have Rle0f' i:0 <= Pr[X = (INR i)] by apply:Rle_big_0_P_g=>? _;  apply:(Rle0f P).
+have Rle0g i:0 <= alp ^ i by apply:pow_le; apply:Rlt_le.
+pose f := mkPosFun Rle0f'.
+pose g := mkPosFun Rle0g.
+have dom_by_fg:  f <<  g.
+  move=> i; move/pow0_inv=>alp0.
+  by move:lt_0_alp; rewrite alp0;move/Rlt_not_eq.
+have le_1_maxn : (leq 1 (\max_(a in A) to_nat a).+1)%N by apply:ltn0Sn.
+by apply:(log_sum_inequality_nat dom_by_fg le_1_maxn).
+Qed.
+
+
+  forall (x : R) (n : nat), 0 <= x < 1 -> (0 < n)%coq_nat -> 0 <= x ^ n < 1
+Rlt_pow:
+  forall (x : R) (n m : nat), 1 < x -> (n < m)%coq_nat -> x ^ n < x ^ m
+Rlt_minus: forall r1 r2 : R, r1 < r2 -> r1 - r2 < 0
+
+log  - log alp * `E X
+Ropp_plus_distr
+Ropp_minus_distr
+
+ r. add
+move/nesym/Rdichotomy:Ex_non0.  move/nesym:Ex_non0.
+ ; last first.
+    
+
+alp * `E X + log (exp2 (- alp)) - log (1 - (exp2 (- alp)))); last first.
+
+
+
+
+
+
+pose alp := log(`E X) - log(`E X -1).
 move: le_1_Ex.
 move/Rle_lt_or_eq_dec=>[less | eq]; last first.
   rewrite -eq /Rminus Rplus_opp_r mul0R Ropp_0 addR0 mul1R log_1.
@@ -552,7 +638,7 @@ have alppos : 0 < alp.
   apply log_increasing=> //.
   apply Rgt_lt; apply tech_Rgt_minus.
   exact: Rlt_zero_1.
-rewrite [X in _ <= X](_ :_ = alp * `E X + log (exp2 (- alp)) - log (1 - exp2 (- alp))); last first.
+rewrite [X in _ <= X](_ :_ = alp * `E X + log (exp2 (- alp)) - log (1 - (exp2 (- alp)))); last first.
   rewrite log_exp2 /alp.
   rewrite Ropp_minus_distr.
   rewrite /Rminus exp2_plus exp2_log //.
@@ -613,9 +699,10 @@ apply (Rle_trans _ (- log (\rsum_(1 <= i < (\max_(a| a \in A) to_nat a).+2) (exp
   move=>?.
   apply:pow_gt0.
   by apply:exp2_pos.
-  rewrite/alp.
-  rewrite /H_N.
-  rewrite -Ex_Ex_alt Ex_nat.
+
+rewrite/alp.
+rewrite /H_N.
+rewrite -Ex_Ex_alt Ex_nat.
 
 
   apply (Rle_trans _ (- log (exp2 alp / (1 - exp2 (- alp))))).
